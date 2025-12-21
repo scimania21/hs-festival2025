@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>현송네컷</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; color: #333; }
+        .screen { display: none; width: 100%; max-width: 1000px; padding: 20px; box-sizing: border-box; text-align: center; }
+        .screen.active { display: block; }
+        h1, h2 { color: #2c3e50; }
+        button { background-color: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: background-color .3s; margin: 5px; }
+        button:hover { background-color: #229954; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #frame-selection .frame-options { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        #frame-selection .frame-row { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        #frame-selection img { box-sizing: border-box; width: 200px; border: 3px solid transparent; border-radius: 10px; cursor: pointer; transition: border-color .3s, transform .3s; background-color: #fff; }
+        #frame-selection img:hover { border-color: #27ae60; transform: scale(1.05); }
+        #video-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; }
+        
+        #capture-screen video { 
+            width: 100%; border-radius: 10px; 
+            background-color: #000; 
+            display: block; 
+        }
+
+        #countdown-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; justify-content: center; align-items: center; font-size: 150px; font-weight: 700; color: #fff; text-shadow: 2px 2px 8px rgba(0,0,0,.8); -webkit-text-stroke: 2px #000; z-index: 20; }
+        
+        #capture-progress-overlay {
+            position: absolute; top: 15px; right: 20px;
+            font-size: 36px;
+            font-weight: 700; color: #fff;
+            text-shadow: 1px 1px 4px rgba(0,0,0,.8);
+            -webkit-text-stroke: 1px #000;
+            display: none;
+            z-index: 10;
+        }
+
+        #capture-controls { margin-top: 15px; }
+        #stop-capture-btn { background-color: #e74c3c; }
+        #import-photos-btn { background-color: #3498db; }
+        #import-photos-btn:hover { background-color: #2980b9; }
+        
+        #thumbnails {
+            display: flex; flex-wrap: wrap;
+            gap: 10px; justify-content: center;
+            margin-top: 15px; min-height: 80px;
+            height: auto;
+            padding: 10px; background: #fff;
+            border-radius: 5px;
+        }
+
+        .thumbnail-slot {
+            width: 80px; height: 60px;
+            background-color: #eee;
+            border-radius: 5px;
+            border: 2px dashed #ccc;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+
+        .thumbnail-slot img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            border-radius: 3px;
+            display: block;
+        }
+
+        #photo-selection .photo-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin: 20px 0; }
+        #photo-selection .photo-item img { width: 100%; border-radius: 5px; display: block; border: 4px solid transparent; cursor: pointer; transition: border-color .2s; }
+        #photo-selection .photo-item img.selected { border-color: #27ae60; }
+        #editor-screen canvas { border: 2px solid #ccc; border-radius: 5px; cursor: grab; max-width: 100%; height: auto; touch-action: none; }
+        .instructions { background-color: #e8f8f5; border: 1px solid #a3e4d7; color: #138d75; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .footer { margin-top: 40px; font-size: 14px; color: #888; }
+        #camera-controls { margin-bottom: 10px; }
+        #camera-select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; }
+        
+        /* [수정됨] 입력창 스타일을 하나로 통합하여 중앙 정렬 */
+        .custom-text-input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            margin: 10px 0 0 0; 
+            width: 300px; /* 적절한 너비 설정 */
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="frame-selection" class="screen active">
+        <h1>🎤  현송네컷 투게더 🎤 </h1>
+        <p class="instructions">마음에 드는 프레임을 선택하세요. (동일한 사진이 좌/우 슬롯에 들어갑니다)</p>
+        <div class="frame-options">
+            <div class="frame-row">
+                <img src="1번 프레임.png" alt="프레임 1" data-frame="1번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+                <img src="2번 프레임.png" alt="프레임 2" data-frame="2번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+                <img src="3번 프레임.png" alt="프레임 3" data-frame="3번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+                <img src="4번 프레임.png" alt="프레임 4" data-frame="4번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+            </div>
+            <div class="frame-row">
+                <img src="5번 프레임.png" alt="프레임 5" data-frame="5번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+                <img src="6번 프레임.png" alt="프레임 6" data-frame="6번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+                <img src="7번 프레임.png" alt="프레임 7" data-frame="7번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+                <img src="8번 프레임.png" alt="프레임 8" data-frame="8번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
+            </div>
+        </div>
+        
+        <p class="footer">제작: 인천신정초등학교 김병석 선생님 (scimania@daum.net)</p>
+    </div>
+
+    <div id="capture-screen" class="screen">
+        <h2>📷 사진 촬영 (<span id="capture-count">0</span>/<span id="required-capture-count">0</span>)</h2>
+        <p class="instructions">프레임에 필요한 <b id="required-photos-count-capture">0</b>장의 사진을 촬영하거나 불러오세요.</p>
+        
+        <div id="camera-controls">
+            <label for="camera-select">카메라 선택: </label>
+            <select id="camera-select"></select>
+        </div>
+    
+        <div id="video-container">
+            <video id="webcam" autoplay playsinline></video>
+            <div id="countdown-overlay"></div>
+            <div id="capture-progress-overlay"></div>
+        </div>
+        <div id="capture-controls">
+            <button id="manual-capture-btn">수동촬영</button>
+            <button id="auto-capture-1s-btn">1초 자동촬영</button>
+            <button id="auto-capture-3s-btn">3초 자동촬영</button>
+            <button id="auto-capture-5s-btn">5초 자동촬영</button>
+            <button id="import-photos-btn">사진 가져오기</button>
+            <button id="stop-capture-btn" style="display:none">촬영 중지</button>
+        </div>
+        <button id="next-to-selection-btn" disabled style="display:none;">사진 선택하기</button>
+        <h3>촬영된 사진 목록</h3>
+        <div id="thumbnails"></div>
+    </div>
+
+    <div id="photo-selection" class="screen">
+        <h2>🖼️ 사진 선택</h2>
+        <p class="instructions">프레임에 넣을 <b id="required-photos-count"></b>장의 사진을 선택한 후, '편집 화면으로' 버튼을 눌러주세요.</p>
+        <div id="photo-grid-container" class="photo-grid"></div>
+        <button id="next-to-editor-btn">편집 화면으로</button>
+    </div>
+
+    <div id="editor-screen" class="screen">
+        <h2>🎨 사진 편집</h2>
+        <p class="instructions">사진을 드래그하여 위치를 옮기고, 모서리 핸들(W/A/S/D)로 크기와 방향을 조절하세요. <br>하단에 원하는 문구를 입력하면 <b>양쪽에 동일하게</b> 입력됩니다.</p>
+        <canvas id="canvas"></canvas>
+        
+        <div class="controls" id="text-input-container" style="margin-top: 10px;">
+            <input type="text" id="custom-text-input" class="custom-text-input" placeholder="문구를 입력하세요 (양쪽에 동일하게 적용됩니다)" maxlength="46">
+        </div>
+        
+        <div class="controls" style="margin-top:15px">
+            <button id="download-btn">이미지 다운로드</button>
+            <button id="redo-capture-btn">다시 촬영</button>
+            <button id="restart-btn">처음으로</button>
+        </div>
+    </div>
+
+    <audio id="shutter-sound" src="shutter.mp3" preload="auto"></audio>
+    <input type="file" id="photo-importer" accept="image/*" multiple style="display:none;">
+
+    <script>
+        const screens = document.querySelectorAll('.screen');
+        const frameSelectionScreen = document.getElementById('frame-selection');
+        const captureScreen = document.getElementById('capture-screen');
+        const photoSelectionScreen = document.getElementById('photo-selection');
+        const editorScreen = document.getElementById('editor-screen');
+        const webcamElement = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const captureCountSpan = document.getElementById('capture-count');
+        const manualCaptureBtn = document.getElementById('manual-capture-btn');
+        const autoCapture1sBtn = document.getElementById('auto-capture-1s-btn');
+        const autoCapture3sBtn = document.getElementById('auto-capture-3s-btn');
+        const autoCapture5sBtn = document.getElementById('auto-capture-5s-btn');
+        const stopCaptureBtn = document.getElementById('stop-capture-btn');
+        const countdownOverlay = document.getElementById('countdown-overlay');
+        const thumbnailsContainer = document.getElementById('thumbnails');
+        const captureProgressOverlay = document.getElementById('capture-progress-overlay');
+
+        const downloadBtn = document.getElementById('download-btn');
+        const redoCaptureBtn = document.getElementById('redo-capture-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const shutterSound = document.getElementById('shutter-sound');
+        const cameraSelect = document.getElementById('camera-select');
+
+        const requiredCaptureCountSpan = document.getElementById('required-capture-count');
+        const requiredPhotosCountCapture = document.getElementById('required-photos-count-capture');
+
+        const importPhotosBtn = document.getElementById('import-photos-btn');
+        const photoImporter = document.getElementById('photo-importer');
+        
+        // [수정됨] 단일 입력창으로 변경
+        const customTextInput = document.getElementById('custom-text-input');
+
+        let state = {
+            selectedFrameSrc: null,
+            selectedFrameType: null,
+            requiredPhotos: 0,
+            capturedPhotos: [],
+            editedPhotos: [],
+            frameImage: null
+        };
+
+        let activePhoto = null;
+        let isDragging = false;
+        let isResizing = false;
+        let isRotating = false;
+        let dragStartX, dragStartY;
+        const handleSize = 16;
+        let autoCaptureTimer = null;
+        let countdownInterval = null;
+
+        // 투게더 로직 (좌1, 우1, 좌2, 우2...)
+        const frameSlots = {
+            happiness_4_slots: [
+                [0.0629, 0.0466, 0.4108, 0.4020], // New 1 (좌상)
+                [0.0645, 0.4667, 0.4108, 0.4020], // New 2 (좌하)
+                [0.5247, 0.0480, 0.4108, 0.4020], // New 3 (우상)
+                [0.5247, 0.4667, 0.4108, 0.4020]  // New 4 (우하)
+            ],
+            happiness_8_slots: [
+                [0.0629, 0.0480, 0.4158, 0.2000], // New 1 (Old 1)
+                [0.0629, 0.2567, 0.4158, 0.2000], // New 2 (Old 3)
+                [0.0629, 0.4635, 0.4158, 0.2000], // New 3 (Old 5)
+                [0.0629, 0.6687, 0.4158, 0.2000], // New 4 (Old 7)
+                [0.5230, 0.0480, 0.4158, 0.2000], // New 5 (Old 2)
+                [0.5230, 0.2567, 0.4158, 0.2000], // New 6 (Old 4)
+                [0.5230, 0.4635, 0.4158, 0.2000], // New 7 (Old 6)
+                [0.5230, 0.6687, 0.4158, 0.2000]  // New 8 (Old 8)
+            ]
+        };
+
+        Object.keys(frameSlots).forEach(key => {
+            frameSlots[key].forEach(slot => {
+                if (slot.length < 5) {
+                    slot.push('square');
+                }
+            });
+        });
+
+        function showScreen(screenId) {
+            screens.forEach(screen => screen.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        frameSelectionScreen.addEventListener('click', (e) => {
+            if (e.target.tagName === 'IMG') {
+                state.selectedFrameSrc = e.target.dataset.frame;
+                state.selectedFrameType = e.target.dataset.photoSlots;
+                state.requiredPhotos = parseInt(e.target.dataset.photos); 
+                initializeCameraAndList();
+            }
+        });
+
+        async function initializeCameraAndList() {
+            try {
+                const initialStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                webcamElement.srcObject = initialStream;
+                showScreen('capture-screen');
+
+                captureProgressOverlay.textContent = `0/${state.requiredPhotos}`;
+                captureProgressOverlay.style.display = 'block';
+
+                thumbnailsContainer.innerHTML = "";
+                for (let i = 0; i < state.requiredPhotos; i++) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'thumbnail-slot';
+                    thumbnailsContainer.appendChild(placeholder);
+                }
+
+                requiredCaptureCountSpan.textContent = state.requiredPhotos;
+                requiredPhotosCountCapture.textContent = state.requiredPhotos;
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                const currentTrack = initialStream.getVideoTracks()[0];
+                const currentSettings = currentTrack.getSettings();
+                const currentDeviceInUse = currentSettings.deviceId;
+                let isInitialCameraRear = false; 
+
+                cameraSelect.innerHTML = '';
+                if (videoDevices.length === 0) {
+                    alert('사용 가능한 카메라가 없습니다.');
+                    return;
+                }
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    const label = device.label || `카메라 ${index + 1}`;
+                    option.text = label;
+                    
+                    if (device.deviceId === currentDeviceInUse) {
+                        option.selected = true; 
+                        if (label.toLowerCase().includes('back') || label.toLowerCase().includes('rear') || label.toLowerCase().includes('후면')) {
+                            isInitialCameraRear = true;
+                        }
+                    }
+                    cameraSelect.appendChild(option);
+                });
+
+                if (isInitialCameraRear) {
+                    webcamElement.style.transform = 'scaleX(1)';
+                } else {
+                    webcamElement.style.transform = 'scaleX(-1)';
+                }
+
+            } catch (err) {
+                console.error("웹캠 접근 오류:", err);
+                alert("웹캠에 접근할 수 없습니다. 카메라 권한을 허용해주세요.\n\n(참고: 이 프로그램은 '서버' 환경에서 실행해야 합니다. 'file://' 경로에서는 작동하지 않습니다.)");
+            }
+        }
+        
+        async function startWebcam(deviceId) {
+            try {
+                if (webcamElement.srcObject) {
+                    webcamElement.srcObject.getTracks().forEach(track => track.stop());
+                }
+                const constraints = { video: { deviceId: { exact: deviceId } } };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                webcamElement.srcObject = stream;
+
+                const selectedOption = cameraSelect.options[cameraSelect.selectedIndex];
+                const label = selectedOption.text.toLowerCase();
+                const isRearCamera = label.includes('back') || label.includes('rear') || label.includes('후면');
+
+                if (isRearCamera) {
+                    webcamElement.style.transform = 'scaleX(1)';
+                } else {
+                    webcamElement.style.transform = 'scaleX(-1)';
+                }
+
+            } catch (err) {
+                console.error("웹캠 전환 오류:", err);
+                alert("선택한 카메라를 시작할 수 없습니다.");
+            }
+        }
+
+        cameraSelect.addEventListener('change', () => {
+            startWebcam(cameraSelect.value);
+        });
+
+        function addCapturedPhoto(dataUrl) {
+            if (state.capturedPhotos.length >= state.requiredPhotos) return;
+
+            state.capturedPhotos.push(dataUrl);
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            
+            const slots = thumbnailsContainer.querySelectorAll('.thumbnail-slot');
+            const slotToFill = slots[state.capturedPhotos.length - 1];
+            if (slotToFill) {
+                slotToFill.innerHTML = '';
+                slotToFill.appendChild(img);
+                slotToFill.style.border = '2px solid #27ae60'; 
+            }
+            
+            captureProgressOverlay.textContent = `${state.capturedPhotos.length}/${state.requiredPhotos}`;
+            captureCountSpan.textContent = state.capturedPhotos.length;
+
+            if (state.capturedPhotos.length === state.requiredPhotos) {
+                toggleCaptureButtons(true);
+                stopAutoCapture(); 
+                
+                if (webcamElement.srcObject) {
+                    webcamElement.srcObject.getTracks().forEach(track => track.stop());
+                    webcamElement.srcObject = null; 
+                }
+
+                captureProgressOverlay.style.display = 'none';
+                initEditor(state.capturedPhotos); 
+            }
+        }
+
+        function capturePhoto() {
+            if (state.capturedPhotos.length >= state.requiredPhotos) return;
+            shutterSound.currentTime = 0;
+            shutterSound.play();
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = webcamElement.videoWidth;
+            tempCanvas.height = webcamElement.videoHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            const selectedOption = cameraSelect.options[cameraSelect.selectedIndex];
+            const label = selectedOption.text.toLowerCase();
+            const isRearCamera = label.includes('back') || label.includes('rear') || label.includes('후면');
+
+            if (!isRearCamera) {
+                 // tempCtx.translate(tempCanvas.width, 0);
+                 // tempCtx.scale(-1, 1);
+            }
+
+            tempCtx.drawImage(webcamElement, 0, 0, tempCanvas.width, tempCanvas.height);
+            const dataUrl = tempCanvas.toDataURL('image/jpeg');
+            
+            addCapturedPhoto(dataUrl);
+        }
+
+        function runCountdown(seconds, callback) {
+            let count = seconds;
+            countdownOverlay.style.display = 'flex';
+            const updateCountdown = () => {
+                countdownOverlay.textContent = count;
+                if (count < 1) {
+                    clearInterval(countdownInterval);
+                    countdownOverlay.style.display = 'none';
+                    callback();
+                }
+                count--;
+            };
+            updateCountdown();
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        function startAutoCapture(intervalSeconds) {
+            if (state.capturedPhotos.length >= state.requiredPhotos) return;
+            toggleCaptureButtons(true);
+            stopCaptureBtn.style.display = 'inline-block';
+            
+            const captureLoop = () => {
+                if (state.capturedPhotos.length >= state.requiredPhotos) { 
+                    stopAutoCapture();
+                    return;
+                }
+                runCountdown(intervalSeconds, () => {
+                    capturePhoto();
+                    if (state.capturedPhotos.length < state.requiredPhotos) { 
+                        autoCaptureTimer = setTimeout(captureLoop, 1000);
+                    }
+                });
+            };
+            captureLoop();
+        }
+
+        function stopAutoCapture() {
+            clearTimeout(autoCaptureTimer);
+            clearInterval(countdownInterval);
+            autoCaptureTimer = null;
+            countdownInterval = null;
+            countdownOverlay.style.display = 'none';
+            stopCaptureBtn.style.display = 'none';
+            toggleCaptureButtons(state.capturedPhotos.length >= state.requiredPhotos);
+        }
+
+        function toggleCaptureButtons(disabled) {
+            manualCaptureBtn.disabled = disabled;
+            autoCapture1sBtn.disabled = disabled;
+            autoCapture3sBtn.disabled = disabled;
+            autoCapture5sBtn.disabled = disabled;
+            importPhotosBtn.disabled = disabled;
+        }
+
+        importPhotosBtn.addEventListener('click', () => {
+            stopAutoCapture();
+            photoImporter.click();
+        });
+
+        photoImporter.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            
+            let filesProcessed = 0;
+            for (const file of files) {
+                if (state.capturedPhotos.length >= state.requiredPhotos) break;
+                if (!file.type.startsWith('image/')) {
+                    filesProcessed++;
+                    continue;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    addCapturedPhoto(event.target.result);
+                    filesProcessed++;
+                    if (filesProcessed === files.length) {
+                        e.target.value = null;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        manualCaptureBtn.addEventListener('click', capturePhoto);
+        autoCapture1sBtn.addEventListener('click', () => startAutoCapture(1));
+        autoCapture3sBtn.addEventListener('click', () => startAutoCapture(3));
+        autoCapture5sBtn.addEventListener('click', () => startAutoCapture(5));
+        stopCaptureBtn.addEventListener('click', stopAutoCapture);
+
+        function initEditor(selectedPhotos) { 
+            const frameImg = new Image();
+            state.frameImage = frameImg;
+            frameImg.src = state.selectedFrameSrc;
+            frameImg.onload = () => {
+                canvas.width = frameImg.width;
+                canvas.height = frameImg.height;
+
+                const photoPromises = selectedPhotos.map(src => new Promise(resolve => {
+                    const img = new Image();
+                    img.src = src;
+                    img.onload = () => resolve(img);
+                }));
+
+                Promise.all(photoPromises).then(images => {
+                    state.editedPhotos = []; 
+                    const allSlots = frameSlots[state.selectedFrameType]; 
+
+                    // 투게더 로직
+                    images.forEach((img, i) => {
+                        const slotIndex1 = i * 2;
+                        const slotIndex2 = i * 2 + 1;
+
+                        if (allSlots[slotIndex1]) {
+                            state.editedPhotos.push(createPhotoObject(allSlots[slotIndex1], img));
+                        }
+                        if (allSlots[slotIndex2]) {
+                            state.editedPhotos.push(createPhotoObject(allSlots[slotIndex2], img));
+                        }
+                    });
+                    
+                    drawCanvas();
+                    showScreen('editor-screen');
+                });
+            };
+            if (frameImg.complete) frameImg.onload();
+        }
+
+        function createPhotoObject(slotData, img) {
+            const slotX = slotData[0] * canvas.width;
+            const slotY = slotData[1] * canvas.height;
+            const slotWidth = slotData[2] * canvas.width;
+            const slotHeight = slotData[3] * canvas.height;
+            const slotType = slotData[4];
+            
+            let newWidth = slotWidth;
+            let newHeight = slotWidth * (img.height / img.width);
+            if (newHeight < slotHeight) {
+                newHeight = slotHeight;
+                newWidth = slotHeight * (img.width / img.height);
+            }
+
+            return {
+                img: img, 
+                x: slotX + (slotWidth - newWidth) / 2,
+                y: slotY + (slotHeight - newHeight) / 2,
+                width: newWidth,
+                height: newHeight,
+                rotation: 0,
+                originalSlot: { x: slotX, y: slotY, width: slotWidth, height: slotHeight, type: slotType }
+            };
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            state.editedPhotos.forEach(photo => {
+                ctx.save();
+                const slot = photo.originalSlot;
+                
+                if (slot.type === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(slot.x + slot.width / 2, slot.y + slot.height / 2, Math.min(slot.width, slot.height) / 2, 0, Math.PI * 2);
+                    ctx.closePath();
+                    ctx.clip();
+                } else { // square
+                    ctx.beginPath();
+                    ctx.rect(slot.x, slot.y, slot.width, slot.height);
+                    ctx.closePath();
+                    ctx.clip();
+                }
+
+                ctx.translate(photo.x + photo.width / 2, photo.y + photo.height / 2);
+                ctx.rotate(photo.rotation);
+                ctx.translate(-(photo.x + photo.width / 2), -(photo.y + photo.height / 2));
+                ctx.drawImage(photo.img, photo.x, photo.y, photo.width, photo.height);
+                ctx.restore();
+            });
+
+            if (state.frameImage && state.frameImage.complete) {
+                ctx.drawImage(state.frameImage, 0, 0, canvas.width, canvas.height);
+            }
+            
+           
+            // [수정됨] 하나의 입력값으로 좌/우 모두 그리기
+            const text = customTextInput ? customTextInput.value : "";
+    
+            // BBox 1 (Left)
+            const box1X = 0.0673 * canvas.width;
+            const box1Y = 0.9020 * canvas.height; 
+            const boxWidth = (0.4658 - 0.0673) * canvas.width; 
+            const boxHeight = (0.9444 - 0.9048) * canvas.height;
+            drawLimitedTextInBox(text, box1X, box1Y, boxWidth, boxHeight);
+
+            // BBox 2 (Right)
+            const box2X = (0.7368 - (0.4658 - 0.0673) / 2) * canvas.width;
+            const box2Y = 0.9020 * canvas.height; 
+            drawLimitedTextInBox(text, box2X, box2Y, boxWidth, boxHeight);
+
+            if (activePhoto) {
+                drawHandles(activePhoto);
+            }
+        }
+        
+        function drawDate(x, y) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateString = `${year}. ${month}. ${day}.`;
+
+            ctx.save();
+            ctx.font = 'bold 40px "Malgun Gothic", sans-serif'; 
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // [수정됨] 항상 흰색 글씨 + 검정 테두리 적용
+            ctx.lineWidth = 5;         
+            ctx.strokeStyle = '#000';  
+            ctx.strokeText(dateString, x, y); 
+            
+            ctx.fillStyle = '#fff';    
+            ctx.fillText(dateString, x, y);   
+            
+            ctx.restore();
+        }
+
+        function drawLimitedTextInBox(text, boxX, boxY, boxWidth, boxHeight) {
+            if (!text) return;
+
+            ctx.save();
+            
+            const fontSize = 30;
+            const lineHeight = fontSize * 1.3; 
+            ctx.font = `bold ${fontSize}px "Malgun Gothic", sans-serif`;
+            ctx.textAlign = 'center'; 
+            ctx.textBaseline = 'middle'; 
+
+            // [수정됨] 항상 흰색 글씨 + 검정 테두리 적용 (조건문 제거됨)
+            ctx.lineWidth = 4;        
+            ctx.strokeStyle = '#000';
+            ctx.fillStyle = '#fff';
+
+            const lines = [];
+            lines.push(text.substring(0, 23)); 
+            if (text.length > 23) {
+                lines.push(text.substring(23, 46)); 
+            }
+
+            const totalTextHeight = lines.length * lineHeight;
+            let startY;
+
+            if (totalTextHeight > boxHeight) {
+                startY = boxY;
+            } else {
+                startY = boxY + (boxHeight - totalTextHeight) / 2;
+            }
+
+            startY += lineHeight / 2;
+            const textCenterX = boxX + boxWidth / 2;
+
+            for (let i = 0; i < lines.length; i++) {
+                const lineY = startY + (i * lineHeight);
+                
+                if (lineY > (boxY + boxHeight + lineHeight / 2)) {
+                    break; 
+                }
+                
+                // 테두리(stroke)와 채움(fill) 모두 항상 그림
+                ctx.strokeText(lines[i], textCenterX, lineY);
+                ctx.fillText(lines[i], textCenterX, lineY);
+            }
+
+            ctx.restore();
+        }
+
+        function drawHandles(photo) {
+            const centerX = photo.x + photo.width / 2;
+            const centerY = photo.y + photo.height / 2;
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(photo.rotation);
+            ctx.strokeStyle = '#27ae60';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(-photo.width / 2, -photo.height / 2, photo.width, photo.height);
+            
+            ctx.fillStyle = '#27ae60';
+            ctx.fillRect(photo.width / 2 - handleSize, photo.height / 2 - handleSize, handleSize * 2, handleSize * 2);
+
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(-photo.width / 2, -photo.height / 2, handleSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function getTransformedCoords(point, photo) {
+            const dx = point.x - (photo.x + photo.width / 2);
+            const dy = point.y - (photo.y + photo.height / 2);
+            const angle = -photo.rotation;
+            const rotatedX = dx * Math.cos(angle) - dy * Math.sin(angle);
+            const rotatedY = dx * Math.sin(angle) + dy * Math.cos(angle);
+            return {
+                x: rotatedX + (photo.x + photo.width / 2),
+                y: rotatedY + (photo.y + photo.height / 2)
+            };
+        }
+        
+        function isOverHandle(photo, point, handleType) {
+            const h_size = handleSize * 2;
+            if (handleType === 'resize') {
+                return point.x > photo.x + photo.width - h_size && point.x < photo.x + photo.width &&
+                       point.y > photo.y + photo.height - h_size && point.y < photo.y + photo.height;
+            } else if (handleType === 'rotate') {
+                return point.x > photo.x && point.x < photo.x + h_size &&
+                       point.y > photo.y && point.y < photo.y + h_size;
+            }
+        }
+
+        function handlePointerDown(e) {
+            e.preventDefault();
+            const pos = getPointerPos(e);
+
+            if (activePhoto) {
+                const transformedPos = getTransformedCoords(pos, activePhoto);
+                if (isOverHandle(activePhoto, transformedPos, 'resize')) {
+                    isResizing = true;
+                    canvas.style.cursor = 'se-resize';
+                    return;
+                }
+                if (isOverHandle(activePhoto, transformedPos, 'rotate')) {
+                    isRotating = true;
+                    canvas.style.cursor = 'crosshair';
+                    return;
+                }
+            }
+            
+            activePhoto = null;
+            isDragging = false;
+            isResizing = false;
+            isRotating = false;
+
+            for (let i = state.editedPhotos.length - 1; i >= 0; i--) {
+                const photo = state.editedPhotos[i];
+                const transformedPos = getTransformedCoords(pos, photo);
+                if (transformedPos.x >= photo.x && transformedPos.x <= photo.x + photo.width &&
+                    transformedPos.y >= photo.y && transformedPos.y <= photo.y + photo.height) {
+                    activePhoto = photo;
+                    isDragging = true;
+                    dragStartX = pos.x - photo.x;
+                    dragStartY = pos.y - photo.y;
+                    canvas.style.cursor = 'grabbing';
+                    state.editedPhotos.splice(i, 1);
+                    state.editedPhotos.push(photo); 
+                    break;
+                }
+            }
+            drawCanvas();
+        }
+
+        function handlePointerMove(e) {
+            if (!activePhoto) return;
+            e.preventDefault();
+            const pos = getPointerPos(e);
+            
+            if (isDragging) {
+                activePhoto.x = pos.x - dragStartX;
+                activePhoto.y = pos.y - dragStartY;
+            } else if (isResizing) {
+                const transformedPos = getTransformedCoords(pos, activePhoto);
+                const newWidth = transformedPos.x - activePhoto.x;
+                const newHeight = newWidth * (activePhoto.img.height / activePhoto.img.width);
+                if (newWidth > 20) {
+                    activePhoto.width = newWidth;
+                    activePhoto.height = newHeight;
+                }
+            } else if (isRotating) {
+                const centerX = activePhoto.x + activePhoto.width / 2;
+                const centerY = activePhoto.y + activePhoto.height / 2;
+                activePhoto.rotation = Math.atan2(pos.y - centerY, pos.x - centerX);
+            }
+            drawCanvas();
+        }
+
+        function handlePointerUp(e) {
+            isDragging = false;
+            isResizing = false;
+            isRotating = false;
+            canvas.style.cursor = 'grab';
+        }
+
+        document.addEventListener('keydown', e => {
+            if (!activePhoto) return;
+            
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || 
+                (customTextInput && e.target === customTextInput)
+            ) return;
+
+            const scaleFactor = 1.05;
+            const rotateAngle = Math.PI / 180 * 5; 
+            let needsRedraw = true;
+
+            switch(e.key.toLowerCase()) {
+                case 'w':
+                    activePhoto.width *= scaleFactor;
+                    activePhoto.height *= scaleFactor;
+                    break;
+                case 's':
+                    activePhoto.width /= scaleFactor;
+                    activePhoto.height /= scaleFactor;
+                    break;
+                case 'a':
+                    activePhoto.rotation -= rotateAngle;
+                    break;
+                case 'd':
+                    activePhoto.rotation += rotateAngle;
+                    break;
+                default:
+                    needsRedraw = false;
+            }
+
+            if (needsRedraw) {
+                e.preventDefault();
+                drawCanvas();
+            }
+        });
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('mouseleave', handlePointerUp);
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+        canvas.addEventListener('touchend', handlePointerUp);
+        canvas.addEventListener('touchcancel', handlePointerUp);
+
+        if (customTextInput) {
+            customTextInput.addEventListener('input', drawCanvas);
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            activePhoto = null;
+            drawCanvas(); 
+            const now = new Date();
+            const timestamp = now.getFullYear().toString() +
+                              (now.getMonth() + 1).toString().padStart(2, '0') +
+                              now.getDate().toString().padStart(2, '0') + '_' +
+                              now.getHours().toString().padStart(2, '0') +
+                              now.getMinutes().toString().padStart(2, '0') +
+                              now.getSeconds().toString().padStart(2, '0');
+            const link = document.createElement('a');
+            link.download = `현송네컷_투게더_${timestamp}.png`; 
+            link.href = canvas.toDataURL('image/png');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        redoCaptureBtn.addEventListener('click', () => {
+            stopAutoCapture();
+
+            if (webcamElement.srcObject) {
+                webcamElement.srcObject.getTracks().forEach(track => track.stop());
+                webcamElement.srcObject = null; 
+            }
+            
+            state.capturedPhotos = [];
+            state.editedPhotos = [];
+            state.frameImage = null; 
+            
+            activePhoto = null;
+            isDragging = false;
+            isResizing = false;
+            isRotating = false;
+            
+            if (customTextInput) {
+                customTextInput.value = ""; 
+            }
+
+            captureCountSpan.textContent = "0";
+            thumbnailsContainer.innerHTML = ""; 
+            toggleCaptureButtons(false);
+            
+            initializeCameraAndList(); 
+        });
+
+        restartBtn.addEventListener('click', () => {
+            stopAutoCapture();
+            if (webcamElement.srcObject) {
+                webcamElement.srcObject.getTracks().forEach(track => track.stop());
+                webcamElement.srcObject = null; 
+            }
+            state = {
+                selectedFrameSrc: null,
+                selectedFrameType: null,
+                requiredPhotos: 0,
+                capturedPhotos: [],
+                editedPhotos: [],
+                frameImage: null
+            };
+            activePhoto = null;
+            isDragging = isResizing = isRotating = false;
+            captureCountSpan.textContent = "0";
+            
+            requiredCaptureCountSpan.textContent = "0";
+            requiredPhotosCountCapture.textContent = "0";
+            
+            if (customTextInput) {
+                customTextInput.value = ""; 
+            }
+            
+            captureProgressOverlay.style.display = 'none';
+            captureProgressOverlay.textContent = '';
+
+            toggleCaptureButtons(false);
+            
+            thumbnailsContainer.innerHTML = "";
+            showScreen('frame-selection');
+        });
+
+        showScreen('frame-selection');
+    </script>
+</body>
+</html>
