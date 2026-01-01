@@ -75,14 +75,13 @@
         #camera-controls { margin-bottom: 10px; }
         #camera-select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; }
         
-        /* [수정됨] 입력창 스타일을 하나로 통합하여 중앙 정렬 */
         .custom-text-input {
             padding: 10px;
             border-radius: 5px;
             border: 1px solid #ccc;
             font-size: 14px;
             margin: 10px 0 0 0; 
-            width: 300px; /* 적절한 너비 설정 */
+            width: 300px;
             box-sizing: border-box;
         }
     </style>
@@ -90,8 +89,8 @@
 <body>
 
     <div id="frame-selection" class="screen active">
-        <h1>🎤  현송네컷 투게더 🎤 </h1>
-        <p class="instructions">마음에 드는 프레임을 선택하세요. (동일한 사진이 좌/우 슬롯에 들어갑니다)</p>
+        <h1>🎆 현송중 축제네컷 ✨</h1>
+        <p class="instructions">마음에 드는 프레임을 선택하세요! (동일한 사진이 좌/우 슬롯에 들어갑니다)</p>
         <div class="frame-options">
             <div class="frame-row">
                 <img src="1번 프레임.png" alt="프레임 1" data-frame="1번 프레임.png" data-photos="4" data-photo-slots="happiness_8_slots">
@@ -194,7 +193,6 @@
         const importPhotosBtn = document.getElementById('import-photos-btn');
         const photoImporter = document.getElementById('photo-importer');
         
-        // [수정됨] 단일 입력창으로 변경
         const customTextInput = document.getElementById('custom-text-input');
 
         let state = {
@@ -215,23 +213,22 @@
         let autoCaptureTimer = null;
         let countdownInterval = null;
 
-        // 투게더 로직 (좌1, 우1, 좌2, 우2...)
         const frameSlots = {
             happiness_4_slots: [
-                [0.0629, 0.0466, 0.4108, 0.4020], // New 1 (좌상)
-                [0.0645, 0.4667, 0.4108, 0.4020], // New 2 (좌하)
-                [0.5247, 0.0480, 0.4108, 0.4020], // New 3 (우상)
-                [0.5247, 0.4667, 0.4108, 0.4020]  // New 4 (우하)
+                [0.0629, 0.0466, 0.4108, 0.4020], 
+                [0.0645, 0.4667, 0.4108, 0.4020], 
+                [0.5247, 0.0480, 0.4108, 0.4020], 
+                [0.5247, 0.4667, 0.4108, 0.4020] 
             ],
             happiness_8_slots: [
-                [0.0629, 0.0480, 0.4158, 0.2000], // New 1 (Old 1)
-                [0.0629, 0.2567, 0.4158, 0.2000], // New 2 (Old 3)
-                [0.0629, 0.4635, 0.4158, 0.2000], // New 3 (Old 5)
-                [0.0629, 0.6687, 0.4158, 0.2000], // New 4 (Old 7)
-                [0.5230, 0.0480, 0.4158, 0.2000], // New 5 (Old 2)
-                [0.5230, 0.2567, 0.4158, 0.2000], // New 6 (Old 4)
-                [0.5230, 0.4635, 0.4158, 0.2000], // New 7 (Old 6)
-                [0.5230, 0.6687, 0.4158, 0.2000]  // New 8 (Old 8)
+                [0.0629, 0.0480, 0.4158, 0.2000],
+                [0.0629, 0.2567, 0.4158, 0.2000],
+                [0.0629, 0.4635, 0.4158, 0.2000],
+                [0.0629, 0.6687, 0.4158, 0.2000],
+                [0.5230, 0.0480, 0.4158, 0.2000],
+                [0.5230, 0.2567, 0.4158, 0.2000],
+                [0.5230, 0.4635, 0.4158, 0.2000],
+                [0.5230, 0.6687, 0.4158, 0.2000] 
             ]
         };
 
@@ -313,7 +310,7 @@
 
             } catch (err) {
                 console.error("웹캠 접근 오류:", err);
-                alert("웹캠에 접근할 수 없습니다. 카메라 권한을 허용해주세요.\n\n(참고: 이 프로그램은 '서버' 환경에서 실행해야 합니다. 'file://' 경로에서는 작동하지 않습니다.)");
+                alert("웹캠에 접근할 수 없습니다.");
             }
         }
         
@@ -390,11 +387,6 @@
             const selectedOption = cameraSelect.options[cameraSelect.selectedIndex];
             const label = selectedOption.text.toLowerCase();
             const isRearCamera = label.includes('back') || label.includes('rear') || label.includes('후면');
-
-            if (!isRearCamera) {
-                 // tempCtx.translate(tempCanvas.width, 0);
-                 // tempCtx.scale(-1, 1);
-            }
 
             tempCtx.drawImage(webcamElement, 0, 0, tempCanvas.width, tempCanvas.height);
             const dataUrl = tempCanvas.toDataURL('image/jpeg');
@@ -584,8 +576,8 @@
                 ctx.drawImage(state.frameImage, 0, 0, canvas.width, canvas.height);
             }
             
-           
-            // [수정됨] 하나의 입력값으로 좌/우 모두 그리기
+            // [날짜 기능은 삭제됨]
+
             const text = customTextInput ? customTextInput.value : "";
     
             // BBox 1 (Left)
@@ -604,29 +596,6 @@
                 drawHandles(activePhoto);
             }
         }
-        
-        function drawDate(x, y) {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const dateString = `${year}. ${month}. ${day}.`;
-
-            ctx.save();
-            ctx.font = 'bold 40px "Malgun Gothic", sans-serif'; 
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            // [수정됨] 항상 흰색 글씨 + 검정 테두리 적용
-            ctx.lineWidth = 5;         
-            ctx.strokeStyle = '#000';  
-            ctx.strokeText(dateString, x, y); 
-            
-            ctx.fillStyle = '#fff';    
-            ctx.fillText(dateString, x, y);   
-            
-            ctx.restore();
-        }
 
         function drawLimitedTextInBox(text, boxX, boxY, boxWidth, boxHeight) {
             if (!text) return;
@@ -639,10 +608,21 @@
             ctx.textAlign = 'center'; 
             ctx.textBaseline = 'middle'; 
 
-            // [수정됨] 항상 흰색 글씨 + 검정 테두리 적용 (조건문 제거됨)
-            ctx.lineWidth = 4;        
-            ctx.strokeStyle = '#000';
-            ctx.fillStyle = '#fff';
+            // [수정된 로직] 1번, 3번, 4번 프레임(및 기존 7번)은 검정색 글씨 사용
+            const isDarkTextFrame = state.selectedFrameSrc.includes('1번') || 
+                                    state.selectedFrameSrc.includes('3번') || 
+                                    state.selectedFrameSrc.includes('4번') || 
+                                    state.selectedFrameSrc.includes('7번');
+
+            if (!isDarkTextFrame) {
+                // 그 외 프레임 (흰색 글씨 + 테두리)
+                ctx.lineWidth = 4;        
+                ctx.strokeStyle = '#000';
+                ctx.fillStyle = '#fff';
+            } else {
+                // 1, 3, 4, 7번 프레임 (검정 글씨, 테두리 없음)
+                ctx.fillStyle = '#000';
+            }
 
             const lines = [];
             lines.push(text.substring(0, 23)); 
@@ -669,8 +649,10 @@
                     break; 
                 }
                 
-                // 테두리(stroke)와 채움(fill) 모두 항상 그림
-                ctx.strokeText(lines[i], textCenterX, lineY);
+                // 흰색 글씨일 때만 테두리 그리기
+                if (!isDarkTextFrame) {
+                    ctx.strokeText(lines[i], textCenterX, lineY);
+                }
                 ctx.fillText(lines[i], textCenterX, lineY);
             }
 
